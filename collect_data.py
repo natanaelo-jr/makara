@@ -80,7 +80,7 @@ def main():
         print(f"Compiling {program}...")
         try:
             subprocess.run(
-                ["gcc", "-o", f"bin/{output_name}", f"Jotai/{program}"],
+                ["gcc", "-w", "-o", f"bin/{output_name}", f"Jotai/{program}"],
                 check=True,
             )
         except subprocess.CalledProcessError as e:
