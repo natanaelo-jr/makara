@@ -1,5 +1,6 @@
 import os
 import subprocess
+import time
 
 perf_events = """
 cpu-cycles
@@ -30,7 +31,7 @@ def parse_perf_output(output_lines: list, expected_events: list) -> dict:
 def runPerf(executable_path: str) -> dict:
     events_list = perf_events.strip().split("\n")
     perf_command = ["perf", "stat", "-x,"]
-    perf_command += ["-e", ",".join(events_list), f"./{executable_path} 0"]
+    perf_command += ["-e", ",".join(events_list), f"./{executable_path}", "0"]
     result = subprocess.run(perf_command, capture_output=True, check=False, text=True)
     perf_output_lines = result.stderr.strip().split("\n")
     collected_data = parse_perf_output(perf_output_lines, events_list)
@@ -63,6 +64,7 @@ def saveToCSV(data: list[dict], csv_path: str, program_name: str):
 
 def main():
 
+    start_time = time.time()
     # Collect CPU data
     os.makedirs("results", exist_ok=True)
     os.makedirs("bin", exist_ok=True)
@@ -77,7 +79,7 @@ def main():
         output_name = program.replace(".c", ".out")
         print(f"Compiling {program}...")
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ["gcc", "-o", f"bin/{output_name}", f"Jotai/{program}"],
                 check=True,
             )
@@ -99,15 +101,19 @@ def main():
     for program in programs:
         print(f"Running {program}...")
         all_data = executeMultipleRuns(f"bin/{program}", runs=100)
+        program_name = program.replace(".out", "")
+        csv_path = f"results/{program_name}.csv"
         saveToCSV(
             all_data,
-            f"results/{program.replace(".out", "")}.csv",
-            program.replace(".out", ""),
+            csv_path,
+            program_name,
         )
         print(f"Finished {program}.")
 
     # Zip results folder
     subprocess.run(["zip", "-r", "results.zip", "results"], stdout=subprocess.DEVNULL)
+    end_time = time.time()
+    print(f"Total execution time: {end_time - start_time:.2f} seconds")
 
 
 if __name__ == "__main__":

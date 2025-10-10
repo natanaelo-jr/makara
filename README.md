@@ -8,6 +8,10 @@ Makara is an automated pipeline designed to run in multiple machines aiming to c
 - Python 3.x
 - Linux perf
 
+## Installing Dependencies
+
+TODO
+
 ## How to execute
 
 ```bash
