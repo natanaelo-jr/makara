@@ -38,7 +38,7 @@ def runPerf(executable_path: str) -> dict:
     return collected_data
 
 
-def executeMultipleRuns(executable_path: str, runs: int = 100) -> list[dict]:
+def executeMultipleRuns(executable_path: str, runs: int = 100):
     # warmup run
     for _ in range(3):
         runPerf(executable_path)
@@ -53,7 +53,7 @@ def executeMultipleRuns(executable_path: str, runs: int = 100) -> list[dict]:
     return all_runs_data
 
 
-def saveToCSV(data: list[dict], csv_path: str, program_name: str):
+def saveToCSV(data, csv_path: str, program_name: str):
     with open(csv_path, "w") as f:
         f.write("program," + "run," + ",".join(data[0].keys()) + "\n")
         i = 1
