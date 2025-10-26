@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 
 str_header = """
 #define _GNU_SOURCE
@@ -110,7 +111,31 @@ str_results = """
     close(fd_cache_miss);
 """
 
-def modifyFile(file):
+def injection(match_obj):
+        str1 = f"// Any String {name}"# str 1 wanted
+        str2 = f"// Any String  {name}"# str 2 wanted
+
+        injection_status = {"found_function": False}
+        
+        switch_header = match_obj.group(1) # switch header
+        switch_content = match_obj.group(2) # switch content
+        
+        pattern_to_inject = rf"(\s*)({re.escape(name)}\s*\([^)]*\)\s*;)" # the function
+        
+        replacement_string = f"\\g<1>{str1}\\n\\g<1>\\g<2>\\n\\g<1>{str2}" # the addition
+        
+        (modified_content, num_subs) = re.subn(pattern_to_inject, 
+                                               replacement_string, 
+                                               switch_content, 
+                                               count=1) #substitution
+        
+        if num_subs > 0:
+            injection_status["found_function"] = True
+        
+        return f"{switch_header}{modified_content}"
+
+
+def modifyFile(file,name):
     finalString = ""
     with open(file) as f:
         lines = f.readlines()
@@ -154,24 +179,58 @@ def modifyFile(file):
             finalString += line
             finalString += str_stop
 
-        if line == ""
-
-
         finalString += line
+    
+    def injection(match_obj):
+            str1 = f"// Any String {name}"# str 1 wanted
+            str2 = f"// Any String  {name}"# str 2 wanted
 
-    if not injected:
+            injection_status = {"found_function": False}
+            
+            switch_header = match_obj.group(1) # switch header
+            switch_content = match_obj.group(2) # switch content
+            
+            pattern_to_inject = rf"(\s*)({re.escape(name)}\s*\([^)]*\)\s*;)" # the function
+            
+            replacement_string = f"\\g<1>{str1}\\n\\g<1>\\g<2>\\n\\g<1>{str2}" # the addition
+            
+            (modified_content, num_subs) = re.subn(pattern_to_inject, 
+                                                replacement_string, 
+                                                switch_content, 
+                                                count=1) #substitution
+            
+            if num_subs > 0:
+                injection_status["found_function"] = True
+            
+            return f"{switch_header}{modified_content}"
+
+
+    new_finalString = re.sub(pattern=r'(switch\(opt\)\s*\{)([\s\S]*\})', 
+                             repl = injection, 
+                             string = finalString, 
+                             count=1) # add code in the switch statement
+    
+    
+    if len(new_finalString) == 0:
         print(f"⚠️  Nenhum ponto de injeção encontrado em {file}")
     else:
         print(f"✅ Injeção feita em {file}")
 
-    print(finalString)
 
 
 def main():
     sources = os.listdir("Jotai")
-    print(sources[1])
-    # modifyFile(f"Jotai/{sources[1]}")
-    
+    for source in sources:
+        name_pattern = re.findall(r'\_(\w+)\.c', source)
+
+        if len(name_pattern) == 2:
+            name = name_pattern[1]
+        
+        elif len(name_pattern) == 1:
+            name = name_pattern[0]
+                 
+        print(name)
+        modifyFile(file=f"Jotai/{source}",name=name)
 
 
 if __name__ == "__main__":
