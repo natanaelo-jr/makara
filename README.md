@@ -37,6 +37,11 @@ You can test if perf is installed with
 ```bash
 perf --version
 ```
+For corretly use perf without any restrictions, please make sure to run the following command
+
+```bash
+sudo sysctl -w kernel.perf_event_paranoid=1     
+```
 
 ---
 
