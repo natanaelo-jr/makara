@@ -123,7 +123,7 @@ def modifyFile(file):
     // ---------------------
     // Save to CSV
     // ---------------------
-    FILE *f_csv = fopen("perf_results.csv", "a"); // "a" to append
+    FILE *f_csv = fopen("results/perf_results.csv", "a"); // "a" to append
     if (f_csv == NULL) {{
         perror("Error creating/opening CSV file");
         exit(1);
@@ -203,7 +203,7 @@ def modifyFile(file):
     else:
         print(f"{file} failed in the regex")
 
-def main():
+def injection_pipeline():
     if not os.path.isdir("Jotai"):
         print("Jotai directory not found.")
         return
@@ -214,7 +214,3 @@ def main():
             modifyFile(file=f"Jotai/{source}")
         else:
             print(f"Ignoring non .c file: {source}")
-
-if __name__ == "__main__":
-    main()
-
