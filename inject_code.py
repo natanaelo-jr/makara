@@ -80,21 +80,25 @@ str_stop = """
     ioctl(fd_cycles, PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP);
 """
 
+
 def modifyFile(file):
     finalString = ""
-    
+
     with open(file) as f:
         content = f.read()
 
-    name_pattern = re.findall(r'\/\* Variables and functions \*\/\s*([\s\S]*?)\s*\/\/ ------------------------------------------------------------------------- \/\/', content)
+    name_pattern = re.findall(
+        r"\/\* Variables and functions \*\/\s*([\s\S]*?)\s*\/\/ ------------------------------------------------------------------------- \/\/",
+        content,
+    )
     if not name_pattern:
         print(f"Pattern 'Variables and functions' not found in {file} ❌.")
         return
 
-    name_pattern2 = re.findall(r'(\_?\w+)\s*\(', name_pattern[0])
-    
+    name_pattern2 = re.findall(r"(\_?\w+)\s*\(", name_pattern[0])
+
     name = ""
-    excluded = ['if','for','__attribute__','while']
+    excluded = ["if", "for", "__attribute__", "while"]
 
     for current_name in name_pattern2:
         if not current_name in excluded:
@@ -144,11 +148,10 @@ def modifyFile(file):
             count_cache_ref);
             
     fclose(f_csv);
-    printf("Performance results (for {name}) appended to 'perf_results.csv'");
 """
 
     lines = content.splitlines(True)
-    
+
     for i, line in enumerate(lines):
         if "// includes\n" in line:
             finalString += line
@@ -161,41 +164,94 @@ def modifyFile(file):
             continue
 
         finalString += line
-    
-    def injection(match_obj):
-            str1 = f"{{\n{str_setup}\n{str_start}"
-            
-            str2 = f"{str_stop}\n{str_results}\n}}"
-            
-            injection_status = {"found_function": False}
-            
-            switch_header = match_obj.group(1)
-            switch_content = match_obj.group(2)
-            
-            pattern_to_inject = rf"(\s*)({re.escape(name)}\s*\([^)]*\)\s*;)"
-            
-            replacement_string = f"\\g<1>{str1}\\n\\g<1>\\g<2>\\n\\g<1>{str2}"
-            
-            (modified_content, num_subs) = re.subn(pattern_to_inject, 
-                                                   replacement_string, 
-                                                   switch_content)
-            
-            if num_subs > 0:
-                injection_status["found_function"] = True
-            
-            return f"{switch_header}{modified_content}"
 
-    new_finalString = re.sub(pattern=r'(switch\(opt\)\s*\{)([\s\S]*\})', 
-                             repl = injection, 
-                             string = finalString, 
-                             count=1)
-    
+    def injection(match_obj):
+        str1 = f"{{\n{str_setup}\n{str_start}"
+        str2 = f"{str_stop}\n{str_results}\n}}"
+
+        injection_status = {"found_function": False}
+
+        switch_header = match_obj.group(1)
+        switch_content = match_obj.group(2)
+
+        # 1) Primeiro, tentamos detectar a forma de atribuição:
+        #    <qualquer-declaração> <ident> = name(args);
+        # Capturamos:
+        #   g1 = indent
+        #   g2 = declaração à esquerda (tipo + nome + '=') por exemplo "unsigned int benchRet = "
+        #   g3 = chamada (name(args))
+        #   g4 = ponto-e-vírgula e espaços finais
+        assignment_pattern = (
+            rf"(^|\n)(\s*)([\w\*\s]+\b\w+\s*=\s*)({re.escape(name)}\s*\([^;)]*\))(\s*;)"
+        )
+
+        def replace_assignment(m):
+            leading_newline = m.group(1)
+            indent = m.group(2) or ""
+            left = m.group(3)  # ex: "unsigned int benchRet = "
+            call_expr = m.group(4)  # ex: "rate_to_atmf(rate)"
+            semicolon_ws = m.group(5)  # ex: "    ;" or just ";"
+
+            # Usamos __typeof__(call_expr) para deduzir o tipo de retorno.
+            # Construímos uma GCC statement expression: ({ setup; __typeof__(call_expr) __ret = call_expr; stop; results; __ret; })
+            stmt_expr = (
+                f"({{ \n"
+                f"{str_setup}\n"
+                f"{indent}// ---------------------\n"
+                f"{indent}// Enable the group\n"
+                f"{indent}// ---------------------\n"
+                f"{indent}ioctl(fd_cycles, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);\n"
+                f"{indent}ioctl(fd_cycles, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);\n\n"
+                f"{indent}// ======== Measured region ========\n\n"
+                f"{indent}__typeof__({call_expr}) __perf_ret = {call_expr};\n\n"
+                f"{indent}// ======== End of measured region ========\n"
+                f"{indent}{str_stop}\n"
+                f"{indent}{str_results}\n\n"
+                f"{indent}__perf_ret;\n"
+                f"}})"
+            )
+
+            injection_status["found_function"] = True
+            # Reconstroi a linha: preservamos o leading newline e a indentação
+            return f"{leading_newline}{indent}{left}{stmt_expr}{semicolon_ws}"
+
+        # Aplicar substituição de atribuição globalmente no switch_content
+        (after_assignment, n_assign_subs) = re.subn(
+            assignment_pattern, replace_assignment, switch_content, flags=re.DOTALL
+        )
+
+        # 2) Se não encontramos atribuição, tentamos a forma simples de chamada (sem atribuição)
+        if n_assign_subs == 0:
+            # padrão anterior: injetar antes e depois da chamada simples "name(...);"
+            pattern_call = rf"(\s*)({re.escape(name)}\s*\([^)]*\)\s*;)"
+            replacement_call = f"\\g<1>{str1}\\n\\g<1>\\g<2>\\n\\g<1>{str2}"
+            (after_call, n_call_subs) = re.subn(
+                pattern_call, replacement_call, switch_content
+            )
+            if n_call_subs > 0:
+                injection_status["found_function"] = True
+                modified_content = after_call
+            else:
+                modified_content = switch_content
+        else:
+            # já substituímos pela forma de atribuição
+            modified_content = after_assignment
+
+        return f"{switch_header}{modified_content}"
+
+    new_finalString = re.sub(
+        pattern=r"(switch\(opt\)\s*\{)([\s\S]*\})",
+        repl=injection,
+        string=finalString,
+        count=1,
+    )
+
     if len(new_finalString) != 0:
         try:
             if not os.path.isdir("ModifiedJotai"):
                 os.mkdir("ModifiedJotai")
-                
-            with open(f"ModifiedJotai/{name}.c",'w') as f: 
+
+            with open(f"ModifiedJotai/{name}.c", "w") as f:
                 f.write(new_finalString)
             print(f"Modified {file} created as {name}.c ✅... ")
         except Exception as e:
@@ -203,11 +259,12 @@ def modifyFile(file):
     else:
         print(f"{file} failed in the regex")
 
+
 def injection_pipeline():
     if not os.path.isdir("Jotai"):
         print("Jotai directory not found.")
         return
-        
+
     sources = os.listdir("Jotai")
     for source in sources:
         if source.endswith(".c"):
