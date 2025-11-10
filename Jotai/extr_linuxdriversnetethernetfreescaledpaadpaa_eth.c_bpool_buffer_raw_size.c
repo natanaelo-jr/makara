@@ -1,33 +1,33 @@
 // ========================================================================= //
 
 // includes
+#include "float.h"
+#include "limits.h"
 #include "stdio.h"
 #include "stdlib.h"
-#include "time.h"
 #include "string.h"
-#include "limits.h"
-#include "float.h"
-
-
+#include "time.h"
 
 #define JOTAI_NUM_RANDS_ 25
 
-const unsigned rand_primes[JOTAI_NUM_RANDS_] = {179, 103, 479, 647, 229, 37, 271, 557, 263, 607, 18743, 50359, 21929, 48757, 98179, 12907, 52937, 64579, 49957, 52567, 507163, 149939, 412157, 680861, 757751};
+const unsigned rand_primes[JOTAI_NUM_RANDS_] = {
+    179,   103,   479,    647,    229,    37,     271,   557,   263,
+    607,   18743, 50359,  21929,  48757,  98179,  12907, 52937, 64579,
+    49957, 52567, 507163, 149939, 412157, 680861, 757751};
 
 int next_i() {
   int counter = 0;
-  return rand_primes[(++counter)%JOTAI_NUM_RANDS_];
+  return rand_primes[(++counter) % JOTAI_NUM_RANDS_];
 }
 
 float next_f() {
   int counter = 0;
-  return rand_primes[(++counter)%JOTAI_NUM_RANDS_] / 757751.0F;
-} 
-
+  return rand_primes[(++counter) % JOTAI_NUM_RANDS_] / 757751.0F;
+}
 
 // Usage menu
 void usage() {
-    printf("%s", "Usage:\n\
+  printf("%s", "Usage:\n\
     prog [ARGS]\n\
 \nARGS:\n\
        0            int-bounds\n\
@@ -35,16 +35,15 @@ void usage() {
        2            big-arr-10x\n\
 \n\
 ");
-
 }
-
 
 // ------------------------------------------------------------------------- //
 
-#define NULL ((void*)0)
-typedef unsigned long size_t;  // Customize by platform.
-typedef long intptr_t; typedef unsigned long uintptr_t;
-typedef long scalar_t__;  // Either arithmetic or pointer type.
+#define NULL ((void *)0)
+typedef unsigned long size_t; // Customize by platform.
+typedef long intptr_t;
+typedef unsigned long uintptr_t;
+typedef long scalar_t__; // Either arithmetic or pointer type.
 /* By default, we understand bool (as a convenience). */
 typedef int bool;
 #define false 0
@@ -53,75 +52,67 @@ typedef int bool;
 /* Forward declarations */
 
 /* Type definitions */
-typedef  int u8 ;
+typedef int u8;
 
 /* Variables and functions */
- int DPAA_BP_RAW_SIZE ; 
+int DPAA_BP_RAW_SIZE;
 
-__attribute__((used)) static inline size_t bpool_buffer_raw_size(u8 index, u8 cnt)
-{
-	size_t res = DPAA_BP_RAW_SIZE / 4;
-	u8 i;
+__attribute__((used)) static inline size_t bpool_buffer_raw_size(u8 index,
+                                                                 u8 cnt) {
+  size_t res = DPAA_BP_RAW_SIZE / 4;
+  u8 i;
 
-	for (i = (cnt < 3) ? cnt : 3; i < 3 + index; i++)
-		res *= 2;
-	return res;
+  for (i = (cnt < 3) ? cnt : 3; i < 3 + index; i++)
+    res *= 2;
+  return res;
 }
 
-
 // ------------------------------------------------------------------------- //
-
-
-
 
 // ------------------------------------------------------------------------- //
 
 int main(int argc, char *argv[]) {
 
-    if (argc != 2) {
-        usage();
-        return 1;
-    }
+  if (argc != 2) {
+    usage();
+    return 1;
+  }
 
-    int opt = atoi(argv[1]);
-    switch(opt) {
+  int opt = atoi(argv[1]);
+  switch (opt) {
 
-    // int-bounds
-    case 0:
-    {
-          int index = 100;
-          int cnt = 100;
-          unsigned long benchRet = bpool_buffer_raw_size(index,cnt);
-          printf("%lu\n", benchRet); 
-        
-        break;
-    }
-    // big-arr
-    case 1:
-    {
-          int index = 255;
-          int cnt = 255;
-          unsigned long benchRet = bpool_buffer_raw_size(index,cnt);
-          printf("%lu\n", benchRet); 
-        
-        break;
-    }
-    // big-arr-10x
-    case 2:
-    {
-          int index = 10;
-          int cnt = 10;
-          unsigned long benchRet = bpool_buffer_raw_size(index,cnt);
-          printf("%lu\n", benchRet); 
-        
-        break;
-    }
+  // int-bounds
+  case 0: {
+    int index = 100;
+    int cnt = 100;
+    unsigned long benchRet = bpool_buffer_raw_size(index, cnt);
+    printf("%lu\n", benchRet);
 
-    default:
-        usage();
-        break;
+    break;
+  }
+  // big-arr
+  case 1: {
+    int index = 255;
+    int cnt = 255;
+    unsigned long benchRet = bpool_buffer_raw_size(index, cnt);
+    printf("%lu\n", benchRet);
 
-    }
+    break;
+  }
+  // big-arr-10x
+  case 2: {
+    int index = 10;
+    int cnt = 10;
+    unsigned long benchRet = bpool_buffer_raw_size(index, cnt);
+    printf("%lu\n", benchRet);
 
-    return 0;
+    break;
+  }
+
+  default:
+    usage();
+    break;
+  }
+
+  return 0;
 }
