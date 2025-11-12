@@ -54,7 +54,7 @@ def main():
     for output_name in sources:
         print(f"Running {output_name}...")
         try:
-            for _ in range(30):
+            for _ in range(100):
                 subprocess.run(
                     [f"./bin/{output_name}", "0"],
                     check=True,
